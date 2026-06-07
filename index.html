@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Knowledge Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sidebar-w:    280px;
+  --topbar-h:     54px;
+  --statusbar-h:  28px;
+
+  /* Blues */
+  --blue-950:  #040f2a;
+  --blue-900:  #071640;
+  --blue-800:  #0d2460;
+  --blue-700:  #143490;
+  --blue-600:  #1e4fc2;
+  --blue-500:  #3470e4;
+  --blue-400:  #5a91f0;
+  --blue-300:  #93b8f8;
+  --blue-100:  #dde9fd;
+  --blue-50:   #eef4ff;
+
+  /* Surfaces */
+  --bg-page:   #ffffff;
+  --bg-side:   #f0f5ff;
+  --bg-card:   #ffffff;
+  --bg-hover:  rgba(52,112,228,0.06);
+  --border:    rgba(30,79,194,0.12);
+  --border-hi: rgba(30,79,194,0.30);
+
+  /* Text */
+  --text-1:    #0d1e4a;
+  --text-2:    #4b6299;
+  --text-3:    #8ea4cc;
+
+  /* Accent */
+  --accent:    var(--blue-500);
+  --accent-hi: var(--blue-600);
+  --accent-dim:rgba(52,112,228,0.10);
+  --accent-glow:rgba(52,112,228,0.06);
+
+  /* Sky */
+  --sky:       #38bdf8;
+  --sky-dim:   rgba(56,189,248,0.10);
+
+  --radius:    10px;
+  --radius-lg: 16px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-page);
+  color: var(--text-1);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 300;
+}
+
+/* ══════════════════════════════
+   TOP BAR
+══════════════════════════════ */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--topbar-h);
+  background: var(--blue-900);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 100;
+  gap: 16px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.logo-mark {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+
+.logo-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.logo-text span {
+  color: var(--blue-300);
+  font-weight: 400;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.12);
+}
+
+.breadcrumb {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.breadcrumb .sep { color: rgba(255,255,255,0.20); }
+.breadcrumb .active { color: var(--blue-300); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #67e8f9;
+  background: rgba(103,232,249,0.10);
+  border: 1px solid rgba(103,232,249,0.20);
+  padding: 4px 12px;
+  border-radius: 100px;
+  letter-spacing: 0.08em;
+}
+
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #67e8f9;
+  animation: pulse 2s ease infinite;
+}
+
+.topbar-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.70);
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.topbar-btn:hover {
+  border-color: rgba(255,255,255,0.28);
+  color: #ffffff;
+  background: rgba(255,255,255,0.13);
+}
+
+/* ══════════════════════════════
+   MAIN LAYOUT
+══════════════════════════════ */
+.layout {
+  position: fixed;
+  top: var(--topbar-h);
+  bottom: var(--statusbar-h);
+  left: 0; right: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ══════════════════════════════
+   SIDEBAR
+══════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg-side);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.4,0,0.2,1),
+              opacity 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sec-head {
+  padding: 16px 18px 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+}
+
+/* About */
+.about-block {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(160deg, var(--blue-50) 0%, var(--bg-side) 100%);
+}
+
+.about-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--blue-800);
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.about-title span { color: var(--blue-500); }
+
+.about-block p {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.65;
+}
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  border-color: var(--blue-400);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.stat-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--blue-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* Pipeline */
+.pipeline-block {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.pipe-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  cursor: default;
+}
+
+.pipe-row:hover { background: var(--bg-hover); }
+
+.pipe-dot {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.pipe-dot.b  { background: var(--blue-50);  }
+.pipe-dot.b2 { background: var(--blue-100); }
+.pipe-dot.b3 { background: rgba(52,112,228,0.08); }
+
+.pipe-info { flex: 1; min-width: 0; }
+
+.pipe-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pipe-desc {
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pipe-connector {
+  width: 1px;
+  height: 10px;
+  background: var(--blue-300);
+  margin-left: 22px;
+  opacity: 0.4;
+}
+
+/* Tech stack */
+.tech-block {
+  padding: 12px 18px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tech-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tech-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-hi);
+  color: var(--blue-600);
+  background: var(--blue-50);
+  transition: background 0.2s, color 0.2s;
+}
+
+.tech-tag:hover {
+  background: var(--blue-100);
+  color: var(--blue-800);
+}
+
+/* Tips */
+.tips-block {
+  padding: 14px 18px;
+  flex: 1;
+}
+
+.tip-item {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tip-item:last-child { border-bottom: none; }
+
+.tip-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--blue-400);
+  flex-shrink: 0;
+  width: 16px;
+  padding-top: 1px;
+}
+
+.tip-text {
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+/* ══════════════════════════════
+   CONTENT
+══════════════════════════════ */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #f8faff;
+}
+
+.content-header {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.content-url {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--blue-50);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
+.content-url .lock { color: var(--blue-500); }
+
+.content-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.c-tab {
+  font-size: 11px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text-3);
+  padding: 4px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.c-tab.active {
+  background: var(--accent-dim);
+  color: var(--blue-600);
+  border-color: var(--border-hi);
+  font-weight: 500;
+}
+
+.c-tab:hover:not(.active) {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
+
+/* iframe */
+.iframe-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.iframe-container iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: #f0f5ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10;
+  transition: opacity 0.5s ease;
+}
+
+.loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 2px solid var(--blue-100);
+  border-top-color: var(--blue-500);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+
+/* ══════════════════════════════
+   STATUS BAR
+══════════════════════════════ */
+.statusbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--statusbar-h);
+  background: var(--blue-800);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 18px;
+  z-index: 100;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #67e8f9;
+}
+
+.status-item.lit { color: #ffffff; }
+
+.status-sep {
+  width: 1px;
+  height: 12px;
+  background: rgba(255,255,255,0.12);
+}
+
+.status-right { margin-left: auto; }
+
+/* ══════════════════════════════
+   ANIMATIONS
+══════════════════════════════ */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.topbar, .sidebar, .statusbar { animation: fadeIn 0.4s ease both; }
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media (max-width: 700px) {
+  :root { --sidebar-w: 240px; }
+  .breadcrumb { display: none; }
+  .topbar-divider { display: none; }
+}
+
+@media (max-width: 500px) {
+  .sidebar { position: absolute; z-index: 50; height: 100%; }
+  .sidebar.collapsed { display: none; }
+  .live-badge { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ─── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <button class="topbar-btn" id="toggle-btn" aria-label="切換側邊欄">☰</button>
+    <div class="logo-mark">⬡</div>
+    <span class="logo-text">RAG <span>Engine</span></span>
+    <div class="topbar-divider"></div>
+    <nav class="breadcrumb" aria-label="路徑">
+      <span>Workspace</span>
+      <span class="sep">›</span>
+      <span>Knowledge Base</span>
+      <span class="sep">›</span>
+      <span class="active">ChromaDB · Gradio</span>
+    </nav>
+  </div>
+  <div class="topbar-right">
+    <span class="live-badge">
+      <span class="live-dot"></span>LIVE
+    </span>
+    <a href="https://kobeblackdog-rag-chromadb-gradio.hf.space" target="_blank" class="topbar-btn">↗ 新視窗</a>
+    <a href="https://huggingface.co/spaces/kobeblackdog/rag-chromadb-gradio" target="_blank" class="topbar-btn">🤗 HF Space</a>
+  </div>
+</header>
+
+<!-- ─── MAIN LAYOUT ─── -->
+<div class="layout">
+
+  <!-- ─── SIDEBAR ─── -->
+  <aside class="sidebar" id="sidebar" aria-label="應用程式資訊">
+
+    <div class="about-block">
+      <div class="about-title">知識<span>檢索</span>引擎</div>
+      <p>結合向量嵌入與大型語言模型，從您的文件中提取精準答案。上傳 PDF 或文字，即時建立語意索引。</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val">ChromaDB</div>
+        <div class="stat-label">向量資料庫</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">RAG</div>
+        <div class="stat-label">核心架構</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">Gradio</div>
+        <div class="stat-label">UI 框架</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">HF ☁</div>
+        <div class="stat-label">雲端部署</div>
+      </div>
+    </div>
+
+    <div class="sec-head">資料流程</div>
+
+    <div class="pipeline-block">
+      <div class="pipe-row">
+        <div class="pipe-dot b">📄</div>
+        <div class="pipe-info">
+          <div class="pipe-name">文件上傳</div>
+          <div class="pipe-desc">PDF / TXT / DOCX</div>
+        </div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-row">
+        <div class="pipe-dot b">✂️</div>
+        <div class="pipe-info">
+          <div class="pipe-name">文字切塊</div>
+          <div class="pipe-desc">Chunking &amp; Overlap</div>
+        </div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-row">
+        <div class="pipe-dot b2">🔢</div>
+        <div class="pipe-info">
+          <div class="pipe-name">向量嵌入</div>
+          <div class="pipe-desc">Embedding Model</div>
+        </div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-row">
+        <div class="pipe-dot b2">🗄️</div>
+        <div class="pipe-info">
+          <div class="pipe-name">儲存索引</div>
+          <div class="pipe-desc">ChromaDB Vector Store</div>
+        </div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-row">
+        <div class="pipe-dot b3">🔍</div>
+        <div class="pipe-info">
+          <div class="pipe-name">語意檢索</div>
+          <div class="pipe-desc">Similarity Search</div>
+        </div>
+      </div>
+      <div class="pipe-connector"></div>
+      <div class="pipe-row">
+        <div class="pipe-dot b3">💬</div>
+        <div class="pipe-info">
+          <div class="pipe-name">LLM 生成</div>
+          <div class="pipe-desc">Contextual Answer</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-head">技術堆疊</div>
+
+    <div class="tech-block">
+      <div class="tech-tags">
+        <span class="tech-tag">Python</span>
+        <span class="tech-tag">LangChain</span>
+        <span class="tech-tag">ChromaDB</span>
+        <span class="tech-tag">Gradio</span>
+        <span class="tech-tag">Sentence-Transformers</span>
+        <span class="tech-tag">OpenAI API</span>
+        <span class="tech-tag">HuggingFace</span>
+        <span class="tech-tag">FAISS</span>
+      </div>
+    </div>
+
+    <div class="sec-head">使用提示</div>
+
+    <div class="tips-block">
+      <div class="tip-item">
+        <span class="tip-num">01</span>
+        <span class="tip-text">上傳 PDF 或文字文件建立知識庫，支援多份同時上傳。</span>
+      </div>
+      <div class="tip-item">
+        <span class="tip-num">02</span>
+        <span class="tip-text">以自然語言提問，系統會從文件中找出最相關的段落。</span>
+      </div>
+      <div class="tip-item">
+        <span class="tip-num">03</span>
+        <span class="tip-text">問題越具體，回答越精確；可追問以獲得更深入解釋。</span>
+      </div>
+      <div class="tip-item">
+        <span class="tip-num">04</span>
+        <span class="tip-text">模型回答附有來源段落引用，可驗證原始文件內容。</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ─── CONTENT ─── -->
+  <main class="content" aria-label="RAG 應用程式">
+
+    <div class="content-header">
+      <div class="content-url">
+        <span class="lock">🔒</span>
+        <span>kobeblackdog-rag-chromadb-gradio.hf.space</span>
+      </div>
+      <div class="content-tabs">
+        <span class="c-tab active">應用程式</span>
+        <span class="c-tab" onclick="window.open('https://huggingface.co/spaces/kobeblackdog/rag-chromadb-gradio','_blank')">原始碼 ↗</span>
+      </div>
+    </div>
+
+    <div class="iframe-container">
+      <div class="loading-overlay" id="loader">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">載入應用程式中…</span>
+      </div>
+      <iframe
+        id="app-frame"
+        src="https://kobeblackdog-rag-chromadb-gradio.hf.space"
+        title="RAG ChromaDB Gradio Application"
+        allow="accelerometer; clipboard-write; encrypted-media"
+        loading="lazy"
+      ></iframe>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── STATUS BAR ─── -->
+<footer class="statusbar" aria-label="狀態列">
+  <div class="status-item lit">
+    <span class="status-dot"></span>已連線
+  </div>
+  <div class="status-sep"></div>
+  <div class="status-item">HuggingFace Spaces</div>
+  <div class="status-sep"></div>
+  <div class="status-item">Retrieval-Augmented Generation</div>
+  <div class="status-right status-item" id="clock"></div>
+</footer>
+
+<script>
+  const btn     = document.getElementById('toggle-btn');
+  const sidebar = document.getElementById('sidebar');
+  btn.addEventListener('click', () => sidebar.classList.toggle('collapsed'));
+
+  const frame  = document.getElementById('app-frame');
+  const loader = document.getElementById('loader');
+  frame.addEventListener('load', () => setTimeout(() => loader.classList.add('hidden'), 400));
+  setTimeout(() => loader.classList.add('hidden'), 8000);
+
+  function tick() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>
